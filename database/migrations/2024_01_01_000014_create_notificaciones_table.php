@@ -6,32 +6,23 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('notificaciones', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
-            $table->string('tipo'); // invitacion_equipo, nuevo_evento, etc.
+            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+            $table->string('tipo', 50); // invitacion_equipo, evaluacion_completada, etc.
             $table->string('titulo');
             $table->text('mensaje');
-            $table->json('datos_adicionales')->nullable(); // {equipo_id: 1, evento_id: 2}
+            $table->string('url_accion')->nullable();
             $table->boolean('leida')->default(false);
-            $table->string('url_accion')->nullable(); // /equipos/1
+            $table->dateTime('leida_en')->nullable();
             $table->timestamps();
             
-            // Índices
-            $table->index('user_id');
-            $table->index('leida');
-            $table->index('tipo');
+            $table->index(['user_id', 'leida', 'created_at']);
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('notificaciones');

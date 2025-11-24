@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use App\Models\Perfil;
-use App\Models\Role;
+use App\Models\Participante;
+use App\Models\Rol;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -34,9 +34,10 @@ class RegisteredUserController extends Controller
         $request->validate([
             'nombre' => ['required', 'string', 'max:100'],
             'apellidos' => ['required', 'string', 'max:100'],
-            'num_control' => ['required', 'string', 'max:20', 'unique:perfiles,num_control'],
+            'no_control' => ['required', 'string', 'max:20', 'unique:participantes,no_control'],
             'carrera_id' => ['required', 'exists:carreras,id'],
-            'rol_preferido' => ['nullable', 'string', 'max:100'],
+            'semestre' => ['required', 'integer', 'min:1', 'max:12'],
+            'telefono' => ['nullable', 'string', 'max:15'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
@@ -50,18 +51,20 @@ class RegisteredUserController extends Controller
             'password' => Hash::make($request->password),
         ]);
 
-        // Asignar rol de estudiante por defecto
-        $rolEstudiante = Role::where('name', 'estudiante')->first();
-        if ($rolEstudiante) {
-            $user->roles()->attach($rolEstudiante->id);
+        // Asignar rol de participante por defecto
+        $rolParticipante = Rol::where('nombre', 'participante')->first();
+        if ($rolParticipante) {
+            $user->roles()->attach($rolParticipante->id);
         }
 
-        // Crear perfil
-        Perfil::create([
+        // Crear perfil de participante
+        Participante::create([
             'user_id' => $user->id,
             'carrera_id' => $request->carrera_id,
-            'num_control' => $request->num_control,
-            'biografia' => $request->rol_preferido ? 'Especialidad: ' . $request->rol_preferido : null,
+            'no_control' => $request->no_control,
+            'semestre' => $request->semestre,
+            'telefono' => $request->telefono,
+            'biografia' => 'Estudiante apasionado por la tecnología y la innovación.',
         ]);
 
         event(new Registered($user));

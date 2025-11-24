@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\Evento;
-use App\Models\EventRegistration;
+use App\Models\EventPremio;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class EventoController extends Controller
 {
@@ -14,223 +16,229 @@ class EventoController extends Controller
      */
     public function index()
     {
-        $eventos = Evento::with(['equipos', 'registros'])
-            ->activos()
-            ->orderBy('fecha_inicio', 'asc')
-            ->paginate(12);
+        $eventos = Evento::with(['equipos'])
+                        ->activos()
+                        ->latest()
+                        ->paginate(12);
 
         return view('eventos.index', compact('eventos'));
     }
 
     /**
-     * Mostrar detalles de un evento
+     * Mostrar detalle de un evento
      */
     public function show(Evento $evento)
     {
-        // Cargar relaciones necesarias
-        $evento->load([
-            'equipos.miembrosActivos',
-            'equipos.lider',
-            'registros'
-        ]);
-
-        // Verificar si el usuario actual está registrado
+        $evento->load(['equipos.participantes', 'premios']);
+        
         $estaInscrito = false;
         $tieneEquipo = false;
-        
-        if (Auth::check()) {
-            $user = Auth::user();
-            $estaInscrito = $user->estaInscritoEn($evento);
-            $tieneEquipo = $user->tieneEquipoEnEvento($evento);
+
+        if (auth()->check() && auth()->user()->participante) {
+            // Verificar si el usuario (como participante) tiene un equipo en este evento
+            $tieneEquipo = auth()->user()->participante->equipos()
+                                        ->where('evento_id', $evento->id)
+                                        ->exists();
+            
+            $estaInscrito = $tieneEquipo; // En la nueva estructura, estar inscrito = tener equipo
         }
 
         return view('eventos.show', compact('evento', 'estaInscrito', 'tieneEquipo'));
     }
 
     /**
-     * Registrar usuario a un evento
-     */
-    public function register(Request $request, Evento $evento)
-    {
-        // Verificar autenticación
-        if (!Auth::check()) {
-            return redirect()->route('login')
-                ->with('error', 'Debes iniciar sesión para registrarte.');
-        }
-
-        $user = Auth::user();
-
-        // Verificar que el evento esté abierto
-        if (!$evento->estaAbierto()) {
-            return redirect()->back()
-                ->with('error', 'Este evento no está abierto para registro.');
-        }
-
-        // Verificar si ya está registrado
-        if ($user->estaInscritoEn($evento)) {
-            return redirect()->back()
-                ->with('error', 'Ya estás registrado en este evento.');
-        }
-
-        // Verificar que haya cupo
-        if (!$evento->puedeRegistrarse()) {
-            return redirect()->back()
-                ->with('error', 'Este evento ya alcanzó el máximo de participantes.');
-        }
-
-        // Inscribir usuario
-        $user->inscribirseEn($evento);
-
-        return redirect()->back()
-            ->with('success', '¡Te has registrado exitosamente al evento!');
-    }
-
-    /**
-     * Cancelar registro a un evento
-     */
-    public function cancelarRegistro(Evento $evento)
-    {
-        if (!Auth::check()) {
-            return redirect()->route('login');
-        }
-
-        $user = Auth::user();
-        $registro = $user->inscripciones()
-                         ->where('evento_id', $evento->id)
-                         ->first();
-
-        if (!$registro) {
-            return redirect()->back()
-                ->with('error', 'No estás registrado en este evento.');
-        }
-
-        $registro->update(['estado' => 'cancelado']);
-
-        return redirect()->back()
-            ->with('success', 'Has cancelado tu registro al evento.');
-    }
-
-    /**
-     * Mostrar formulario de creación (para administradores)
+     * Formulario de crear evento (solo admin)
      */
     public function create()
     {
-        // Verificar que sea admin
-        if (!Auth::user()->isAdmin()) {
-            abort(403, 'No tienes permisos para crear eventos.');
-        }
-
         return view('eventos.create');
     }
 
     /**
-     * Guardar nuevo evento
+     * Guardar nuevo evento (solo admin)
      */
     public function store(Request $request)
     {
-        // Verificar que sea admin
-        if (!Auth::user()->isAdmin()) {
-            abort(403);
-        }
-
-        // Validar datos
-        $validated = $request->validate([
-            'titulo' => 'required|string|max:255',
-            'descripcion' => 'required|string',
-            'tipo' => 'required|in:hackathon,datathon,concurso,workshop',
-            'fecha_inicio' => 'required|date|after:now',
-            'fecha_fin' => 'required|date|after:fecha_inicio',
-            'fecha_limite_registro' => 'required|date|before:fecha_inicio',
-            'ubicacion' => 'required|string|max:255',
-            'es_virtual' => 'boolean',
-            'duracion_horas' => 'nullable|integer|min:1',
-            'max_participantes' => 'nullable|integer|min:1',
-            'min_miembros_equipo' => 'required|integer|min:1|max:10',
-            'max_miembros_equipo' => 'required|integer|min:1|max:10',
-            'imagen_portada' => 'nullable|image|max:2048',
-        ]);
-
-        // Subir imagen si existe
-        if ($request->hasFile('imagen_portada')) {
-            $validated['imagen_portada'] = $request->file('imagen_portada')
-                ->store('eventos', 'public');
-        }
-
-        // Crear evento
-        $validated['created_by'] = Auth::id();
-        $validated['estado'] = 'draft';
-        $validated['es_virtual'] = $request->has('es_virtual');
-
-        $evento = Evento::create($validated);
-
-        return redirect()->route('eventos.show', $evento)
-            ->with('success', 'Evento creado exitosamente.');
-    }
-
-    /**
-     * Mostrar formulario de edición
-     */
-    public function edit(Evento $evento)
-    {
-        // Verificar que sea admin
-        if (!Auth::user()->isAdmin()) {
-            abort(403);
-        }
-
-        return view('eventos.edit', compact('evento'));
-    }
-
-    /**
-     * Actualizar evento
-     */
-    public function update(Request $request, Evento $evento)
-    {
-        // Verificar que sea admin
-        if (!Auth::user()->isAdmin()) {
-            abort(403);
-        }
+        // Log para debug
+        Log::info('Datos recibidos para crear evento:', $request->all());
 
         $validated = $request->validate([
-            'titulo' => 'required|string|max:255',
+            'nombre' => 'required|string|max:255',
             'descripcion' => 'required|string',
             'tipo' => 'required|in:hackathon,datathon,concurso,workshop',
             'fecha_inicio' => 'required|date',
             'fecha_fin' => 'required|date|after:fecha_inicio',
-            'fecha_limite_registro' => 'required|date|before:fecha_inicio',
+            'fecha_limite_registro' => 'required|date',
+            'fecha_evaluacion' => 'nullable|date',
+            'fecha_premiacion' => 'nullable|date',
             'ubicacion' => 'required|string|max:255',
-            'es_virtual' => 'boolean',
-            'estado' => 'required|in:draft,abierto,en_progreso,cerrado,completado',
-            'imagen_portada' => 'nullable|image|max:2048',
+            'es_virtual' => 'nullable|boolean',
+            'duracion_horas' => 'required|integer|min:1',
+            'max_participantes' => 'nullable|integer|min:10',
+            'min_miembros_equipo' => 'required|integer|min:1|max:10',
+            'max_miembros_equipo' => 'required|integer|min:1|max:10|gte:min_miembros_equipo',
+            'imagen_portada' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+            'premios' => 'nullable|array',
+            'premios.*.lugar' => 'nullable|string|max:100',
+            'premios.*.descripcion' => 'nullable|string|max:500',
+        ], [
+            'fecha_fin.after' => 'La fecha de fin debe ser posterior a la fecha de inicio.',
+            'max_miembros_equipo.gte' => 'El tamaño máximo del equipo debe ser mayor o igual al mínimo.',
         ]);
 
-        // Actualizar imagen si hay una nueva
+        DB::beginTransaction();
+        
+        try {
+            // Manejar imagen de portada
+            if ($request->hasFile('imagen_portada')) {
+                $validated['imagen_portada'] = $request->file('imagen_portada')->store('eventos', 'public');
+            }
+
+            // Preparar datos del evento
+            $validated['created_by'] = auth()->id();
+            $validated['estado'] = 'draft'; // Los eventos se crean como borrador
+            $validated['es_virtual'] = $request->input('es_virtual', 0);
+            
+            // Crear evento
+            $evento = Evento::create($validated);
+
+            // Guardar premios (solo si hay datos)
+            if ($request->has('premios') && is_array($request->premios)) {
+                $orden = 1;
+                foreach ($request->premios as $premioData) {
+                    // Solo guardar si tiene lugar Y descripción
+                    if (
+                        isset($premioData['lugar']) && 
+                        isset($premioData['descripcion']) && 
+                        !empty(trim($premioData['lugar'])) && 
+                        !empty(trim($premioData['descripcion']))
+                    ) {
+                        EventPremio::create([
+                            'evento_id' => $evento->id,
+                            'lugar' => trim($premioData['lugar']),
+                            'descripcion' => trim($premioData['descripcion']),
+                            'orden' => $orden,
+                        ]);
+                        $orden++;
+                    }
+                }
+            }
+
+            DB::commit();
+
+            return redirect()
+                ->route('eventos.show', $evento)
+                ->with('success', '¡Evento creado exitosamente! Recuerda activarlo para que los estudiantes puedan registrarse.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            
+            // Log del error para debug
+            Log::error('Error al crear evento:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return back()
+                ->withInput()
+                ->withErrors(['error' => 'Error al crear el evento. Por favor, verifica que todas las fechas sean correctas.']);
+        }
+    }
+
+    /**
+     * Registrarse a un evento (Ya no se usa - ahora se hace a través de equipos)
+     */
+    public function register(Request $request, Evento $evento)
+    {
+        return redirect()->route('eventos.show', $evento)
+            ->with('info', 'Para participar en este evento, crea o únete a un equipo.');
+    }
+
+    /**
+     * Cancelar registro de un evento (Ya no se usa)
+     */
+    public function cancelarRegistro(Evento $evento)
+    {
+        return redirect()->route('eventos.show', $evento)
+            ->with('info', 'Para dejar de participar, sal de tu equipo.');
+    }
+
+    /**
+     * Cambiar estado del evento (solo admin)
+     */
+    public function cambiarEstado(Request $request, Evento $evento)
+    {
+        $request->validate([
+            'estado' => 'required|in:draft,abierto,en_progreso,cerrado,completado'
+        ]);
+
+        $evento->update([
+            'estado' => $request->estado
+        ]);
+
+        $mensajes = [
+            'draft' => 'Evento marcado como borrador',
+            'abierto' => '¡Evento abierto! Los estudiantes ya pueden registrarse',
+            'en_progreso' => 'Evento marcado como en progreso',
+            'cerrado' => 'Evento cerrado',
+            'completado' => 'Evento completado'
+        ];
+
+        return back()->with('success', $mensajes[$request->estado]);
+    }
+
+    /**
+     * Formulario de editar evento (solo admin)
+     */
+    public function edit(Evento $evento)
+    {
+        $evento->load('premios');
+        return view('eventos.edit', compact('evento'));
+    }
+
+    /**
+     * Actualizar evento (solo admin)
+     */
+    public function update(Request $request, Evento $evento)
+    {
+        $validated = $request->validate([
+            'nombre' => 'required|string|max:255',
+            'descripcion' => 'required|string',
+            'tipo' => 'required|in:hackathon,datathon,concurso,workshop',
+            'fecha_inicio' => 'required|date',
+            'fecha_fin' => 'required|date|after:fecha_inicio',
+            'fecha_limite_registro' => 'required|date',
+            'fecha_evaluacion' => 'nullable|date',
+            'fecha_premiacion' => 'nullable|date',
+            'ubicacion' => 'required|string|max:255',
+            'duracion_horas' => 'required|integer|min:1',
+            'max_participantes' => 'nullable|integer|min:10',
+            'min_miembros_equipo' => 'required|integer|min:1|max:10',
+            'max_miembros_equipo' => 'required|integer|min:1|max:10',
+            'imagen_portada' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+        ]);
+
+        // Manejar imagen de portada
         if ($request->hasFile('imagen_portada')) {
             // Eliminar imagen anterior si existe
             if ($evento->imagen_portada) {
                 Storage::disk('public')->delete($evento->imagen_portada);
             }
-            $validated['imagen_portada'] = $request->file('imagen_portada')
-                ->store('eventos', 'public');
+            $validated['imagen_portada'] = $request->file('imagen_portada')->store('eventos', 'public');
         }
-
-        $validated['es_virtual'] = $request->has('es_virtual');
 
         $evento->update($validated);
 
-        return redirect()->route('eventos.show', $evento)
+        return redirect()
+            ->route('eventos.show', $evento)
             ->with('success', 'Evento actualizado exitosamente.');
     }
 
     /**
-     * Eliminar evento
+     * Eliminar evento (solo admin)
      */
     public function destroy(Evento $evento)
     {
-        // Verificar que sea admin
-        if (!Auth::user()->isAdmin()) {
-            abort(403);
-        }
-
         // Eliminar imagen si existe
         if ($evento->imagen_portada) {
             Storage::disk('public')->delete($evento->imagen_portada);
@@ -238,34 +246,26 @@ class EventoController extends Controller
 
         $evento->delete();
 
-        return redirect()->route('eventos.index')
+        return redirect()
+            ->route('admin.dashboard')
             ->with('success', 'Evento eliminado exitosamente.');
     }
 
     /**
-     * Dashboard del evento (para admins)
+     * Dashboard del evento (estadísticas) (solo admin)
      */
     public function dashboard(Evento $evento)
     {
-        if (!Auth::user()->isAdmin()) {
-            abort(403);
-        }
-
-        $evento->load([
-            'equipos.miembrosActivos',
-            'registros.user.perfil',
-            'proyectos'
-        ]);
-
-        $estadisticas = [
+        $stats = [
             'total_participantes' => $evento->totalParticipantes(),
-            'total_equipos' => $evento->totalEquipos(),
-            'equipos_completos' => $evento->equipos()->where('estado', 'completo')->count(),
-            'participantes_sin_equipo' => $evento->registros()
-                ->whereNull('equipo_id')
+            'total_equipos' => $evento->equipos()->count(),
+            'total_proyectos' => $evento->proyectos()->count(),
+            'equipos_completos' => $evento->equipos()
+                ->whereRaw('(SELECT COUNT(*) FROM equipo_participante WHERE equipo_id = equipos.id AND estado = "activo") >= ?', 
+                    [$evento->min_miembros_equipo])
                 ->count(),
         ];
 
-        return view('eventos.dashboard', compact('evento', 'estadisticas'));
+        return view('eventos.dashboard', compact('evento', 'stats'));
     }
 }

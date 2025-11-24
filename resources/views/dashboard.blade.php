@@ -36,7 +36,7 @@
                                 <div class="border border-gray-200 rounded-lg p-4 hover:border-indigo-300 hover:shadow-md transition">
                                     <div class="flex items-start justify-between mb-3">
                                         <div class="flex-1">
-                                            <h4 class="font-bold text-gray-900 mb-1">{{ $evento->titulo }}</h4>
+                                            <h4 class="font-bold text-gray-900 mb-1">{{ $evento->nombre }}</h4>
                                             <p class="text-sm text-gray-600">
                                                 {{ $evento->tipoTexto }} • {{ $evento->fecha_inicio->format('d M Y') }} • {{ $evento->totalParticipantes() }} participantes
                                             </p>
@@ -88,7 +88,7 @@
                                 <div class="flex items-center justify-between mb-3">
                                     <div>
                                         <h4 class="font-bold text-gray-900">{{ $equipo->nombre }}</h4>
-                                        <p class="text-sm text-gray-600">{{ $equipo->evento->titulo }}</p>
+                                        <p class="text-sm text-gray-600">{{ $equipo->evento->nombre }}</p>
                                     </div>
                                     @if($equipo->esLider(auth()->user()))
                                         <span class="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium">
@@ -186,12 +186,12 @@
                             
                             <div class="flex justify-between items-center">
                                 <span class="text-sm text-gray-600">Proyectos Completados</span>
-                                <span class="font-bold text-gray-900">{{ auth()->user()->equiposActivos()->whereHas('proyecto', function($q) { $q->where('estado', 'completado'); })->count() }}</span>
+                                <span class="font-bold text-gray-900">{{ auth()->user()->proyectosCompletados }}</span>
                             </div>
 
                             <div class="flex justify-between items-center">
                                 <span class="text-sm text-gray-600">Constancias Obtenidas</span>
-                                <span class="font-bold text-gray-900">0</span>
+                                <span class="font-bold text-gray-900">{{ auth()->user()->constancias->count() }}</span>
                             </div>
                         </div>
                     </div>

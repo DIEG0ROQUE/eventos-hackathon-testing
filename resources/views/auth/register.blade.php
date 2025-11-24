@@ -165,7 +165,7 @@
 
                     <!-- Número de Control -->
                     <div>
-                        <label for="num_control" class="block text-sm font-medium text-gray-700 mb-1">
+                        <label for="no_control" class="block text-sm font-medium text-gray-700 mb-1">
                             Número de control
                         </label>
                         <div class="relative">
@@ -174,52 +174,83 @@
                                     <path fill-rule="evenodd" d="M10 2a1 1 0 00-1 1v1a1 1 0 002 0V3a1 1 0 00-1-1zM4 4h3a3 3 0 006 0h3a2 2 0 012 2v9a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2zm2.5 7a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm2.45 4a2.5 2.5 0 10-4.9 0h4.9zM12 9a1 1 0 100 2h3a1 1 0 100-2h-3zm-1 4a1 1 0 011-1h2a1 1 0 110 2h-2a1 1 0 01-1-1z" clip-rule="evenodd"/>
                                 </svg>
                             </div>
-                            <input id="num_control" 
+                            <input id="no_control" 
                                    type="text" 
-                                   name="num_control" 
-                                   value="{{ old('num_control') }}"
+                                   name="no_control" 
+                                   value="{{ old('no_control') }}"
                                    required
                                    placeholder="22161154"
-                                   class="block w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm @error('num_control') border-red-500 @enderror">
+                                   class="block w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm @error('no_control') border-red-500 @enderror">
                         </div>
-                        @error('num_control')
+                        @error('no_control')
                             <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
                         @enderror
                     </div>
 
-                    <!-- Carrera -->
-                    <div>
-                        <label for="carrera_id" class="block text-sm font-medium text-gray-700 mb-1">
-                            Carrera
-                        </label>
-                        <select id="carrera_id" 
-                                name="carrera_id" 
-                                required
-                                class="block w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm @error('carrera_id') border-red-500 @enderror">
-                            <option value="">Selecciona tu carrera</option>
-                            @foreach(\App\Models\Carrera::all() as $carrera)
-                                <option value="{{ $carrera->id }}" {{ old('carrera_id') == $carrera->id ? 'selected' : '' }}>
-                                    {{ $carrera->nombre }}
-                                </option>
-                            @endforeach
-                        </select>
-                        @error('carrera_id')
-                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                        @enderror
+                    <!-- Carrera y Semestre en dos columnas -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <!-- Carrera -->
+                        <div>
+                            <label for="carrera_id" class="block text-sm font-medium text-gray-700 mb-1">
+                                Carrera
+                            </label>
+                            <select id="carrera_id" 
+                                    name="carrera_id" 
+                                    required
+                                    class="block w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm @error('carrera_id') border-red-500 @enderror">
+                                <option value="">Selecciona</option>
+                                @foreach(\App\Models\Carrera::all() as $carrera)
+                                    <option value="{{ $carrera->id }}" {{ old('carrera_id') == $carrera->id ? 'selected' : '' }}>
+                                        {{ $carrera->clave }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            @error('carrera_id')
+                                <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <!-- Semestre -->
+                        <div>
+                            <label for="semestre" class="block text-sm font-medium text-gray-700 mb-1">
+                                Semestre
+                            </label>
+                            <select id="semestre" 
+                                    name="semestre" 
+                                    required
+                                    class="block w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm @error('semestre') border-red-500 @enderror">
+                                <option value="">Selecciona</option>
+                                @for($i = 1; $i <= 12; $i++)
+                                    <option value="{{ $i }}" {{ old('semestre') == $i ? 'selected' : '' }}>{{ $i }}º</option>
+                                @endfor
+                            </select>
+                            @error('semestre')
+                                <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                            @enderror
+                        </div>
                     </div>
 
-                    <!-- Rol Preferido -->
+                    <!-- Teléfono -->
                     <div>
-                        <label for="rol_preferido" class="block text-sm font-medium text-gray-700 mb-1">
-                            Rol preferido
+                        <label for="telefono" class="block text-sm font-medium text-gray-700 mb-1">
+                            Teléfono <span class="text-gray-400">(Opcional)</span>
                         </label>
-                        <input id="rol_preferido" 
-                               type="text" 
-                               name="rol_preferido" 
-                               value="{{ old('rol_preferido') }}"
-                               placeholder="¿En qué te especializas?"
-                               class="block w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm">
-                        <p class="mt-1 text-xs text-gray-500">Ejemplo: Programador, Diseñador, Analista...</p>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <svg class="h-4 w-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/>
+                                </svg>
+                            </div>
+                            <input id="telefono" 
+                                   type="tel" 
+                                   name="telefono" 
+                                   value="{{ old('telefono') }}"
+                                   placeholder="951 123 4567"
+                                   class="block w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm @error('telefono') border-red-500 @enderror">
+                        </div>
+                        @error('telefono')
+                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                        @enderror
                     </div>
 
                     <!-- Email -->

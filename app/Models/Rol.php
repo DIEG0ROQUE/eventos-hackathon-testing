@@ -6,13 +6,15 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
-class Role extends Model
+class Rol extends Model  // ← Cambiar de Role a Rol
 {
     use HasFactory;
 
+    protected $table = 'roles'; // ← Agregar esto para asegurar el nombre de la tabla
+
     protected $fillable = [
-        'name',
-        'description',
+        'nombre',      // ← Cambiar de name a nombre
+        'descripcion', // ← Cambiar de description a descripcion
     ];
 
     /**
@@ -20,7 +22,7 @@ class Role extends Model
      */
     public function users(): BelongsToMany
     {
-        return $this->belongsToMany(User::class, 'role_user')
+        return $this->belongsToMany(User::class, 'user_rol')
                     ->withTimestamps();
     }
 
@@ -29,16 +31,16 @@ class Role extends Model
      */
     public static function estudiante()
     {
-        return static::where('name', 'estudiante')->first();
+        return static::where('nombre', 'estudiante')->first();
     }
 
     public static function admin()
     {
-        return static::where('name', 'admin')->first();
+        return static::where('nombre', 'admin')->first();
     }
 
     public static function juez()
     {
-        return static::where('name', 'juez')->first();
+        return static::where('nombre', 'juez')->first();
     }
 }

@@ -42,6 +42,8 @@ Route::prefix('eventos')->name('eventos.')->group(function () {
         Route::put('/{evento}', [EventoController::class, 'update'])->name('update');
         Route::delete('/{evento}', [EventoController::class, 'destroy'])->name('destroy');
         Route::get('/{evento}/dashboard', [EventoController::class, 'dashboard'])->name('dashboard');
+        // Cambiar estado del evento
+        Route::patch('/{evento}/cambiar-estado', [EventoController::class, 'cambiarEstado'])->name('cambiar-estado');
     });
 });
 

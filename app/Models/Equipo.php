@@ -5,9 +5,9 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Equipo extends Model
@@ -21,92 +21,33 @@ class Equipo extends Model
         'lider_id',
         'max_miembros',
         'estado',
-        'avatar',
     ];
 
-    /**
-     * El evento al que pertenece
-     */
     public function evento(): BelongsTo
     {
         return $this->belongsTo(Evento::class);
     }
 
-    /**
-     * El líder del equipo
-     */
     public function lider(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'lider_id');
+        return $this->belongsTo(Participante::class, 'lider_id');
     }
 
-    /**
-     * Los miembros del equipo (relación many-to-many)
-     */
-    public function miembros(): BelongsToMany
+    public function participantes(): BelongsToMany
     {
-        return $this->belongsToMany(User::class, 'equipo_miembros', 'equipo_id', 'user_id')
-                    ->withPivot('rol_en_equipo', 'especializacion', 'estado', 'fecha_union')
+        return $this->belongsToMany(Participante::class, 'equipo_participante', 'equipo_id', 'participante_id')
+                    ->withPivot('perfil_id', 'estado')
                     ->withTimestamps();
     }
 
-    /**
-     * Los miembros activos (solo aceptados)
-     */
-    public function miembrosActivos(): BelongsToMany
-    {
-        return $this->miembros()->wherePivot('estado', 'aceptado');
-    }
-
-    /**
-     * Las solicitudes pendientes
-     */
-    public function solicitudesPendientes(): BelongsToMany
-    {
-        return $this->miembros()->wherePivot('estado', 'pendiente');
-    }
-
-    /**
-     * El proyecto del equipo
-     */
     public function proyecto(): HasOne
     {
         return $this->hasOne(Proyecto::class);
     }
 
-    /**
-     * Las notificaciones relacionadas al equipo
-     */
-    public function notificaciones(): HasMany
+    public function miembrosActivos()
     {
-        return $this->hasMany(Notificacion::class, 'equipo_id');
-    }
-
-    /**
-     * SCOPES
-     */
-    public function scopeReclutando($query)
-    {
-        return $query->where('estado', 'reclutando');
-    }
-
-    public function scopeActivos($query)
-    {
-        return $query->whereIn('estado', ['reclutando', 'completo', 'activo']);
-    }
-
-    /**
-     * HELPERS
-     */
-    public function estaCompleto(): bool
-    {
-        return $this->miembrosActivos()->count() >= $this->max_miembros;
-    }
-
-    public function puedeAceptarMiembros(): bool
-    {
-        return $this->estado === 'reclutando' &&
-               $this->miembrosActivos()->count() < $this->max_miembros;
+        return $this->participantes()->wherePivot('estado', 'activo');
     }
 
     public function totalMiembros(): int
@@ -114,69 +55,26 @@ class Equipo extends Model
         return $this->miembrosActivos()->count();
     }
 
-    public function esLider(User $user): bool
+    public function estaCompleto(): bool
     {
-        return $this->lider_id === $user->id;
+        return $this->totalMiembros() >= $this->evento->min_miembros_equipo;
     }
 
-    public function esMiembro(User $user): bool
+    public function puedeAceptarMiembros(): bool
     {
-        return $this->miembrosActivos()->where('users.id', $user->id)->exists();
-    }
-
-    public function tieneSolicitudPendiente(User $user): bool
-    {
-        return $this->solicitudesPendientes()->where('users.id', $user->id)->exists();
+        return $this->totalMiembros() < $this->max_miembros;
     }
 
     /**
-     * Agregar un miembro al equipo
+     * Verificar si un usuario es el líder del equipo
      */
-    public function agregarMiembro(User $user, string $rol = null, string $estado = 'pendiente')
+    public function esLider($user): bool
     {
-        return $this->miembros()->attach($user->id, [
-            'rol_en_equipo' => $rol,
-            'estado' => $estado,
-            'fecha_union' => $estado === 'aceptado' ? now() : null,
-        ]);
-    }
-
-    /**
-     * Aceptar solicitud de un miembro
-     */
-    public function aceptarMiembro(User $user)
-    {
-        $this->miembros()->updateExistingPivot($user->id, [
-            'estado' => 'aceptado',
-            'fecha_union' => now(),
-        ]);
-
-        // Actualizar estado del equipo si está completo
-        if ($this->estaCompleto()) {
-            $this->update(['estado' => 'completo']);
+        // Si el usuario no tiene participante, no puede ser líder
+        if (!$user->participante) {
+            return false;
         }
-    }
-
-    /**
-     * Rechazar solicitud de un miembro
-     */
-    public function rechazarMiembro(User $user)
-    {
-        $this->miembros()->updateExistingPivot($user->id, [
-            'estado' => 'rechazado',
-        ]);
-    }
-
-    /**
-     * Remover un miembro del equipo
-     */
-    public function removerMiembro(User $user)
-    {
-        $this->miembros()->detach($user->id);
-
-        // Actualizar estado del equipo
-        if ($this->estado === 'completo' && !$this->estaCompleto()) {
-            $this->update(['estado' => 'reclutando']);
-        }
+        
+        return $this->lider_id === $user->participante->id;
     }
 }

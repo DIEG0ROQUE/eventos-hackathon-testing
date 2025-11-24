@@ -2,11 +2,10 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -14,32 +13,17 @@ class User extends Authenticatable
 {
     use HasFactory, Notifiable;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
-     */
     protected $fillable = [
         'name',
         'email',
         'password',
     ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var array<int, string>
-     */
     protected $hidden = [
         'password',
         'remember_token',
     ];
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
     protected function casts(): array
     {
         return [
@@ -48,79 +32,25 @@ class User extends Authenticatable
         ];
     }
 
-    // ==================== RELACIONES ====================
-
     /**
-     * El perfil del usuario
-     */
-    public function perfil(): HasOne
-    {
-        return $this->hasOne(Perfil::class);
-    }
-
-    /**
-     * Los roles del usuario
+     * Roles del usuario
      */
     public function roles(): BelongsToMany
     {
-        return $this->belongsToMany(Role::class, 'role_user')
+        return $this->belongsToMany(Rol::class, 'user_rol', 'user_id', 'rol_id')
                     ->withTimestamps();
     }
 
     /**
-     * Los equipos donde es líder
+     * Perfil de participante
      */
-    public function equiposLiderados(): HasMany
+    public function participante(): HasOne
     {
-        return $this->hasMany(Equipo::class, 'lider_id');
+        return $this->hasOne(Participante::class);
     }
 
     /**
-     * Los equipos donde es miembro (many-to-many)
-     */
-    public function equipos(): BelongsToMany
-    {
-        return $this->belongsToMany(Equipo::class, 'equipo_miembros', 'user_id', 'equipo_id')
-                    ->withPivot('rol_en_equipo', 'especializacion', 'estado', 'fecha_union')
-                    ->withTimestamps();
-    }
-
-    /**
-     * Los equipos activos (solo aceptados)
-     */
-    public function equiposActivos(): BelongsToMany
-    {
-        return $this->equipos()->wherePivot('estado', 'aceptado');
-    }
-
-    /**
-     * Los eventos a los que está inscrito
-     */
-    public function eventos(): BelongsToMany
-    {
-        return $this->belongsToMany(Evento::class, 'event_registrations')
-                    ->withPivot('estado', 'fecha_registro', 'equipo_id')
-                    ->withTimestamps();
-    }
-
-    /**
-     * Las inscripciones del usuario
-     */
-    public function inscripciones(): HasMany
-    {
-        return $this->hasMany(EventRegistration::class);
-    }
-
-    /**
-     * Los eventos creados por el usuario (si es admin)
-     */
-    public function eventosCreados(): HasMany
-    {
-        return $this->hasMany(Evento::class, 'created_by');
-    }
-
-    /**
-     * Las notificaciones del usuario
+     * Notificaciones del usuario
      */
     public function notificaciones(): HasMany
     {
@@ -128,36 +58,35 @@ class User extends Authenticatable
     }
 
     /**
-     * Las notificaciones no leídas
+     * Calificaciones dadas como juez
      */
-    public function notificacionesNoLeidas(): HasMany
+    public function calificacionesDadas(): HasMany
     {
-        return $this->notificaciones()->where('leida', false);
+        return $this->hasMany(Calificacion::class, 'juez_user_id');
     }
-
-    // ==================== HELPERS DE ROLES ====================
 
     /**
-     * Asignar un rol al usuario
+     * Eventos creados por este usuario
      */
-    public function asignarRol(string $roleName)
+    public function eventosCreados(): HasMany
     {
-        $rol = Role::where('name', $roleName)->first();
-        if ($rol) {
-            $this->roles()->syncWithoutDetaching([$rol->id]);
-        }
+        return $this->hasMany(Evento::class, 'created_by');
     }
+
+    // ========================================
+    // HELPERS PARA ROLES
+    // ========================================
 
     /**
      * Verificar si tiene un rol
      */
-    public function tieneRol(string $roleName): bool
+    public function tieneRol(string $nombreRol): bool
     {
-        return $this->roles()->where('name', $roleName)->exists();
+        return $this->roles()->where('nombre', $nombreRol)->exists();
     }
 
     /**
-     * Es administrador?
+     * Verificar si es administrador
      */
     public function isAdmin(): bool
     {
@@ -165,155 +94,118 @@ class User extends Authenticatable
     }
 
     /**
-     * Es estudiante?
-     */
-    public function isEstudiante(): bool
-    {
-        return $this->tieneRol('estudiante');
-    }
-
-    /**
-     * Es juez?
+     * Verificar si es juez
      */
     public function isJuez(): bool
     {
         return $this->tieneRol('juez');
     }
 
-    // ==================== HELPERS DE PERFIL ====================
-
     /**
-     * Tiene perfil completo?
+     * Verificar si es participante
      */
-    public function tienePerfilCompleto(): bool
+    public function isParticipante(): bool
     {
-        return $this->perfil && $this->perfil->estaCompleto();
+        return $this->tieneRol('participante');
     }
 
     /**
-     * Obtener el avatar o uno por defecto
+     * Asignar rol
      */
-    public function getAvatarUrlAttribute(): string
+    public function asignarRol(string $nombreRol): void
     {
-        if ($this->perfil && $this->perfil->avatar) {
-            return asset('storage/' . $this->perfil->avatar);
+        $rol = Rol::where('nombre', $nombreRol)->first();
+        if ($rol && !$this->tieneRol($nombreRol)) {
+            $this->roles()->attach($rol->id);
         }
-
-        // Avatar por defecto usando UI Avatars
-        $nombre = urlencode($this->name);
-        return "https://ui-avatars.com/api/?name={$nombre}&size=200&background=3b82f6&color=fff";
     }
 
     /**
-     * Obtener el número de control si existe
+     * Verificar si es participante con perfil completo
      */
-    public function getNumControlAttribute(): ?string
+    public function esParticipanteCompleto(): bool
     {
-        return $this->perfil ? $this->perfil->num_control : null;
+        return $this->isParticipante() && $this->participante()->exists();
     }
 
     /**
-     * Obtener el nombre de la carrera
+     * Notificaciones no leídas
      */
-    public function getNombreCarreraAttribute(): string
+    public function notificacionesNoLeidas()
     {
-        return $this->perfil && $this->perfil->carrera 
-            ? $this->perfil->carrera->nombre 
-            : 'Sin carrera';
+        return $this->notificaciones()->where('leida', false)->latest();
     }
-
-    // ==================== HELPERS DE EQUIPOS ====================
-
-    /**
-     * Está en un equipo específico?
-     */
-    public function estaEnEquipo(Equipo $equipo): bool
-    {
-        return $this->equiposActivos()->where('equipos.id', $equipo->id)->exists();
-    }
-
-    /**
-     * Es líder de un equipo específico?
-     */
-    public function esLiderDe(Equipo $equipo): bool
-    {
-        return $equipo->lider_id === $this->id;
-    }
-
-    /**
-     * Tiene solicitud pendiente en un equipo?
-     */
-    public function tieneSolicitudPendienteEn(Equipo $equipo): bool
-    {
-        return $this->equipos()
-                    ->where('equipos.id', $equipo->id)
-                    ->wherePivot('estado', 'pendiente')
-                    ->exists();
-    }
-
-    /**
-     * Obtener equipos activos en un evento específico
-     */
-    public function equiposEnEvento(Evento $evento): BelongsToMany
-    {
-        return $this->equiposActivos()->where('evento_id', $evento->id);
-    }
-
-    /**
-     * Tiene equipo en un evento?
-     */
-    public function tieneEquipoEnEvento(Evento $evento): bool
-    {
-        return $this->equiposEnEvento($evento)->exists();
-    }
-
-    // ==================== HELPERS DE EVENTOS ====================
-
-    /**
-     * Está inscrito en un evento?
-     */
-    public function estaInscritoEn(Evento $evento): bool
-    {
-        return $this->inscripciones()
-                    ->where('evento_id', $evento->id)
-                    ->exists();
-    }
-
-    /**
-     * Puede inscribirse en un evento?
-     */
-    public function puedeInscribirseEn(Evento $evento): bool
-    {
-        return !$this->estaInscritoEn($evento) && $evento->puedeRegistrarse();
-    }
-
-    /**
-     * Inscribirse en un evento
-     */
-    public function inscribirseEn(Evento $evento)
-    {
-        return $this->inscripciones()->create([
-            'evento_id' => $evento->id,
-            'estado' => 'registrado',
-            'fecha_registro' => now(),
-        ]);
-    }
-
-    // ==================== HELPERS DE NOTIFICACIONES ====================
 
     /**
      * Cantidad de notificaciones no leídas
      */
     public function cantidadNotificacionesNoLeidas(): int
     {
-        return $this->notificacionesNoLeidas()->count();
+        return $this->notificaciones()->where('leida', false)->count();
     }
 
     /**
-     * Marcar todas las notificaciones como leídas
+     * Equipos activos del usuario (a través de su participante)
      */
-    public function marcarNotificacionesComoLeidas()
+    public function getEquiposActivosAttribute()
     {
-        $this->notificacionesNoLeidas()->update(['leida' => true]);
+        if (!$this->participante) {
+            return collect([]); // Retorna colección vacía si no es participante
+        }
+        
+        return $this->participante->equiposActivos()->get();
+    }
+
+    /**
+     * Todos los equipos del usuario (a través de su participante)
+     */
+    public function getEquiposAttribute()
+    {
+        if (!$this->participante) {
+            return collect([]); // Retorna colección vacía si no es participante
+        }
+        
+        return $this->participante->equipos;
+    }
+
+    /**
+     * Eventos del usuario (para estadísticas)
+     */
+    public function getEventosAttribute()
+    {
+        if (!$this->participante) {
+            return collect([]);
+        }
+        
+        // Eventos donde el usuario tiene equipos
+        return $this->participante->equipos()->with('evento')->get()->pluck('evento')->unique('id');
+    }
+
+    /**
+     * Proyectos completados del usuario
+     * Nota: La tabla proyectos no tiene columna 'estado', 
+     * por ahora retornamos el total de proyectos
+     */
+    public function getProyectosCompletadosAttribute()
+    {
+        if (!$this->participante) {
+            return 0;
+        }
+        
+        return $this->participante->equipos()
+            ->whereHas('proyecto')
+            ->count();
+    }
+
+    /**
+     * Constancias del usuario
+     */
+    public function getConstanciasAttribute()
+    {
+        if (!$this->participante) {
+            return collect([]);
+        }
+        
+        return $this->participante->constancias;
     }
 }

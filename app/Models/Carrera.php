@@ -13,26 +13,13 @@ class Carrera extends Model
     protected $fillable = [
         'nombre',
         'clave',
-        'activo',
-    ];
-
-    protected $casts = [
-        'activo' => 'boolean',
     ];
 
     /**
-     * Los perfiles de esta carrera
+     * Participantes de esta carrera
      */
-    public function perfiles(): HasMany
+    public function participantes(): HasMany
     {
-        return $this->hasMany(Perfil::class);
-    }
-
-    /**
-     * Scope para carreras activas
-     */
-    public function scopeActivas($query)
-    {
-        return $query->where('activo', true);
+        return $this->hasMany(Participante::class);
     }
 }

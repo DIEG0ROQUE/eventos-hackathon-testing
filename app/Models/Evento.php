@@ -6,7 +6,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Carbon\Carbon;
 
@@ -15,12 +14,14 @@ class Evento extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'titulo',
+        'nombre',
         'descripcion',
         'tipo',
         'fecha_inicio',
         'fecha_fin',
         'fecha_limite_registro',
+        'fecha_evaluacion',
+        'fecha_premiacion',
         'ubicacion',
         'es_virtual',
         'duracion_horas',
@@ -36,11 +37,13 @@ class Evento extends Model
         'fecha_inicio' => 'datetime',
         'fecha_fin' => 'datetime',
         'fecha_limite_registro' => 'datetime',
+        'fecha_evaluacion' => 'datetime',
+        'fecha_premiacion' => 'datetime',
         'es_virtual' => 'boolean',
     ];
 
     /**
-     * El usuario que creó el evento
+     * Usuario que creó el evento
      */
     public function creador(): BelongsTo
     {
@@ -48,7 +51,23 @@ class Evento extends Model
     }
 
     /**
-     * Los equipos de este evento
+     * Premios del evento
+     */
+    public function premios(): HasMany
+    {
+        return $this->hasMany(EventPremio::class)->orderBy('orden');
+    }
+
+    /**
+     * Criterios de evaluación
+     */
+    public function criterios(): HasMany
+    {
+        return $this->hasMany(CriterioEvaluacion::class)->orderBy('orden');
+    }
+
+    /**
+     * Equipos participantes
      */
     public function equipos(): HasMany
     {
@@ -56,7 +75,7 @@ class Evento extends Model
     }
 
     /**
-     * Los proyectos de este evento
+     * Proyectos del evento
      */
     public function proyectos(): HasMany
     {
@@ -64,26 +83,17 @@ class Evento extends Model
     }
 
     /**
-     * Las inscripciones a este evento
+     * Constancias del evento
      */
-    public function registros(): HasMany
+    public function constancias(): HasMany
     {
-        return $this->hasMany(EventRegistration::class);
+        return $this->hasMany(Constancia::class);
     }
 
-    /**
-     * Los participantes inscritos
-     */
-    public function participantes(): BelongsToMany
-    {
-        return $this->belongsToMany(User::class, 'event_registrations')
-                    ->withPivot('estado', 'fecha_registro', 'equipo_id')
-                    ->withTimestamps();
-    }
+    // ========================================
+    // SCOPES
+    // ========================================
 
-    /**
-     * SCOPES
-     */
     public function scopeAbiertos($query)
     {
         return $query->where('estado', 'abierto');
@@ -101,8 +111,12 @@ class Evento extends Model
                     ->orderBy('fecha_inicio', 'asc');
     }
 
+    // ========================================
+    // HELPERS
+    // ========================================
+
     /**
-     * HELPERS
+     * Verificar si está abierto para inscripciones
      */
     public function estaAbierto(): bool
     {
@@ -110,6 +124,9 @@ class Evento extends Model
                Carbon::now()->lte($this->fecha_limite_registro);
     }
 
+    /**
+     * Puede aceptar más participantes
+     */
     public function puedeRegistrarse(): bool
     {
         if (!$this->estaAbierto()) {
@@ -117,18 +134,28 @@ class Evento extends Model
         }
 
         if ($this->max_participantes) {
-            $registrados = $this->registros()->count();
-            return $registrados < $this->max_participantes;
+            $totalParticipantes = $this->totalParticipantes();
+            return $totalParticipantes < $this->max_participantes;
         }
 
         return true;
     }
 
+    /**
+     * Total de participantes (contando miembros de equipos)
+     */
     public function totalParticipantes(): int
     {
-        return $this->registros()->count();
+        return $this->equipos()
+                    ->join('equipo_participante', 'equipos.id', '=', 'equipo_participante.equipo_id')
+                    ->where('equipo_participante.estado', 'activo')
+                    ->distinct('equipo_participante.participante_id')
+                    ->count('equipo_participante.participante_id');
     }
 
+    /**
+     * Total de equipos
+     */
     public function totalEquipos(): int
     {
         return $this->equipos()->count();
@@ -163,5 +190,21 @@ class Evento extends Model
         ];
 
         return $tipos[$this->tipo] ?? $this->tipo;
+    }
+
+    /**
+     * Obtener color del badge según el estado
+     */
+    public function getEstadoColorAttribute(): string
+    {
+        $colores = [
+            'draft' => 'gray',
+            'abierto' => 'green',
+            'en_progreso' => 'blue',
+            'cerrado' => 'red',
+            'completado' => 'purple',
+        ];
+
+        return $colores[$this->estado] ?? 'gray';
     }
 }

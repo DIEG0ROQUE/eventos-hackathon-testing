@@ -30,8 +30,8 @@
                     </div>
                     <div class="flex items-end justify-between">
                         <div>
-                            <p class="text-3xl font-bold text-indigo-600">{{ \App\Models\EventRegistration::count() }}</p>
-                            <p class="text-xs text-gray-500 mt-1">+24% vs mes anterior</p>
+                            <p class="text-3xl font-bold text-indigo-600">{{ \App\Models\Participante::count() }}</p>
+                            <p class="text-xs text-gray-500 mt-1">Estudiantes registrados</p>
                         </div>
                     </div>
                 </div>
@@ -110,14 +110,17 @@
                     <!-- Eventos Recientes -->
                     <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
                         <div class="flex items-center justify-between mb-4">
-                            <h3 class="text-lg font-bold text-gray-900">📅 Eventos Recientes</h3>
+                            <h3 class="text-lg font-bold text-gray-900">
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"/>
+                                </svg> Eventos Recientes</h3>
                         </div>
 
                         <div class="space-y-4">
                             @forelse(\App\Models\Evento::latest()->take(3)->get() as $evento)
                                 <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
                                     <div class="flex-1">
-                                        <h4 class="font-semibold text-gray-900">{{ $evento->titulo }}</h4>
+                                        <h4 class="font-semibold text-gray-900">{{ $evento->nombre }}</h4>
                                         <p class="text-sm text-gray-600">{{ $evento->totalEquipos() }} Equipos</p>
                                     </div>
                                     <div class="flex items-center gap-3">
@@ -163,12 +166,12 @@
                             
                             <div class="flex justify-between items-center">
                                 <span class="text-sm text-gray-600">Proyectos Presentados</span>
-                                <span class="font-bold text-gray-900">{{ \App\Models\Proyecto::where('estado', 'presentado')->count() }}</span>
+                                <span class="font-bold text-gray-900">{{ \App\Models\Proyecto::count() }}</span>
                             </div>
 
                             <div class="flex justify-between items-center">
                                 <span class="text-sm text-gray-600">Equipos Activos</span>
-                                <span class="font-bold text-gray-900">{{ \App\Models\Equipo::activos()->count() }}</span>
+                                <span class="font-bold text-gray-900">{{ \App\Models\Equipo::where('estado', 'activo')->count() }}</span>
                             </div>
                         </div>
 
