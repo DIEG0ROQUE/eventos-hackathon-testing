@@ -1,34 +1,18 @@
 #!/bin/bash
-# Script para Railway - Ejecutar migraciones y seeders
+# Script de inicio optimizado para Railway
 
-echo "🚀 Iniciando deployment en Railway..."
-echo ""
+echo "🚀 Iniciando aplicación..."
 
-# 1. Limpiar cache
-echo "🧹 Limpiando cache..."
-php artisan config:clear
-php artisan cache:clear
-php artisan route:clear
-php artisan view:clear
+# Solo ejecutar migraciones pendientes (sin borrar)
+echo "📊 Verificando migraciones..."
+php artisan migrate --force
 
-# 2. Verificar conexión a base de datos
-echo "🔍 Verificando conexión a base de datos..."
-php artisan db:show
+# Optimizar (solo si no está en cache)
+if [ ! -f "bootstrap/cache/config.php" ]; then
+    echo "⚡ Optimizando aplicación..."
+    php artisan config:cache
+    php artisan route:cache
+    php artisan view:cache
+fi
 
-# 3. Ejecutar migraciones frescas
-echo "📊 Ejecutando migraciones frescas..."
-php artisan migrate:fresh --force
-
-# 4. Ejecutar seeders
-echo "🌱 Ejecutando seeders..."
-php artisan db:seed --force
-
-# 5. Optimizar aplicación
-echo "⚡ Optimizando aplicación..."
-php artisan config:cache
-php artisan route:cache
-php artisan view:cache
-
-echo ""
-echo "✅ Deployment completado exitosamente!"
-echo "🎉 La base de datos ha sido creada y poblada con datos iniciales"
+echo "✅ Aplicación lista!"
