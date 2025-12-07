@@ -10,12 +10,10 @@ class DatabaseSeeder extends Seeder
      * Seed the application's database.
      */
     public function run(): void
-{
-    // Verificar si ya hay datos
-    $carrerasExisten = \App\Models\Carrera::count() > 0;
-    
-    if (!$carrerasExisten) {
-        // Solo ejecutar si no hay datos
+    {
+        // FORZAR ejecución de seeders
+        $this->command->info('🌱 Iniciando seeders...');
+        
         $this->call([
             CarreraSeeder::class,
             RolSeeder::class,
@@ -25,9 +23,14 @@ class DatabaseSeeder extends Seeder
             EquipoSeeder::class,
         ]);
         
-        $this->command->info('Seeders ejecutados: ' . \App\Models\Carrera::count() . ' carreras creadas');
-    } else {
-        $this->command->info('Los datos ya existen, seeders omitidos');
+        // Verificar resultados
+        $carreras = \App\Models\Carrera::count();
+        $roles = \App\Models\Rol::count();
+        $usuarios = \App\Models\User::count();
+        
+        $this->command->info("✅ Seeders completados:");
+        $this->command->info("   - Carreras: {$carreras}");
+        $this->command->info("   - Roles: {$roles}");
+        $this->command->info("   - Usuarios: {$usuarios}");
     }
-}
 }

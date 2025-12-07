@@ -118,8 +118,10 @@ php artisan view:cache
 # Ejecutar migraciones
 php artisan migrate --force
 
-# Ejecutar seeders (solo si no existen datos)
-php artisan db:seed --force || true
+# Ejecutar seeders
+echo "Ejecutando seeders..."
+php artisan db:seed --force
+echo "Seeders completados"
 
 # Iniciar supervisor
 /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
