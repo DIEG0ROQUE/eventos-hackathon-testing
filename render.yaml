@@ -1,11 +1,9 @@
 services:
-  # Base de datos PostgreSQL (servicio separado)
+  # Base de datos PostgreSQL
   - type: pserv
     name: eventos-hackathon-db
     plan: free
     region: oregon
-    databaseName: eventos_hackaton
-    databaseUser: eventos_hackaton_user
 
   # Aplicación Web
   - type: web
