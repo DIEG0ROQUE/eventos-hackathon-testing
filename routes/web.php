@@ -87,21 +87,21 @@ Route::middleware(['auth', 'profile.complete'])->prefix('equipos')->name('equipo
 
     // Chat del equipo
     Route::post('/{equipo}/mensaje', [EquipoController::class, 'enviarMensaje'])->name('enviar-mensaje');
-    
+
     // 🆕 API para mensajes en tiempo real
     Route::post('/{equipo}/mensajes/api', [EquipoController::class, 'enviarMensajeApi'])->name('enviar-mensaje-api');
-    
+
     // Tareas del proyecto
     Route::post('/{equipo}/tareas', [TareaController::class, 'store'])->name('tareas.store');
     Route::put('/{equipo}/tareas/{tarea}', [TareaController::class, 'update'])->name('tareas.update');
     Route::delete('/{equipo}/tareas/{tarea}', [TareaController::class, 'destroy'])->name('tareas.destroy');
     Route::post('/{equipo}/tareas/{tarea}/toggle', [TareaController::class, 'toggleEstado'])->name('tareas.toggle');
-    
+
     // 🆕 API para tareas en tiempo real
     Route::post('/{equipo}/tareas/api', [TareaController::class, 'storeApi'])->name('tareas.store-api');
     Route::put('/{equipo}/tareas/{tarea}/api', [TareaController::class, 'updateApi'])->name('tareas.update-api');
     Route::post('/{equipo}/tareas/{tarea}/toggle-api', [TareaController::class, 'toggleApi'])->name('tareas.toggle-api');
-    
+
     // 🆕 API para solicitudes en tiempo real
     Route::post('/{equipo}/solicitar/api', [EquipoController::class, 'solicitarApi'])->name('solicitar-api');
     Route::get('/{equipo}/solicitudes/pendientes/api', [EquipoController::class, 'obtenerSolicitudesPendientesApi'])->name('solicitudes-pendientes-api');
@@ -264,4 +264,31 @@ Route::middleware(['auth', 'juez'])->prefix('juez')->name('juez.')->group(functi
 
     // Rankings
     Route::get('/rankings', [\App\Http\Controllers\JuezController::class, 'rankings'])->name('rankings');
+});
+
+
+
+
+
+
+// RUTA TEMPORAL - EJECUTAR SEEDERS
+Route::get('/ejecutar-seeders', function () {
+    try {
+        \Illuminate\Support\Facades\Artisan::call('db:seed', ['--force' => true]);
+        $carreras = \App\Models\Carrera::count();
+        $roles = \App\Models\Rol::count();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Seeders ejecutados',
+            'output' => \Illuminate\Support\Facades\Artisan::output(),
+            'carreras' => $carreras,
+            'roles' => $roles,
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+        ], 500);
+    }
 });
