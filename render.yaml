@@ -1,22 +1,15 @@
-services:
-  # Base de datos PostgreSQL
-  - type: pserv
-    name: eventos-hackathon-db
+databases:
+  - name: eventos-hackathon-db
     plan: free
     region: oregon
 
-  # Aplicación Web
+services:
   - type: web
     name: eventos-hackathon
     env: docker
     plan: free
     region: oregon
-    branch: main
-    dockerfilePath: ./Dockerfile
-    dockerContext: .
-    healthCheckPath: /
     envVars:
-      # Aplicación
       - key: APP_NAME
         value: Eventos Hackathon TecNM
       - key: APP_ENV
@@ -26,15 +19,11 @@ services:
       - key: APP_KEY
         generateValue: true
       - key: APP_URL
-        value: https://eventos-hackathon.onrender.com
-      
-      # Logs
+        sync: false
       - key: LOG_CHANNEL
         value: stderr
       - key: LOG_LEVEL
         value: error
-      
-      # Base de datos - Conectada automáticamente
       - key: DB_CONNECTION
         value: pgsql
       - key: DB_HOST
@@ -57,8 +46,6 @@ services:
         fromDatabase:
           name: eventos-hackathon-db
           property: password
-      
-      # Sesión y Cache
       - key: SESSION_DRIVER
         value: database
       - key: SESSION_LIFETIME
@@ -67,8 +54,6 @@ services:
         value: database
       - key: CACHE_STORE
         value: database
-      
-      # Email - Brevo SMTP
       - key: MAIL_MAILER
         value: smtp
       - key: MAIL_HOST
