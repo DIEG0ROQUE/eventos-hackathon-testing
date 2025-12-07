@@ -300,3 +300,14 @@ Route::get('/ejecutar-seeders', function () {
         ], 500);
     }
 });
+
+// DEBUG - Ver carreras
+Route::get('/debug-carreras', function () {
+    $carreras = \App\Models\Carrera::all();
+    return response()->json([
+        'total' => $carreras->count(),
+        'carreras' => $carreras,
+        'database' => config('database.default'),
+        'connection' => config('database.connections.pgsql'),
+    ]);
+});
