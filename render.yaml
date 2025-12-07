@@ -13,7 +13,7 @@ services:
     runtime: docker
     plan: free
     region: oregon
-    branch: principal
+    branch: main
     dockerfilePath: ./Dockerfile
     dockerContext: .
     healthCheckPath: /
