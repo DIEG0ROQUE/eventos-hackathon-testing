@@ -1,21 +1,21 @@
 services:
-  # Base de datos PostgreSQL
+  # Base de datos PostgreSQL (servicio separado)
   - type: pserv
     name: eventos-hackathon-db
-    env: docker
     plan: free
     region: oregon
-    databases:
-      - name: eventos_hackaton
-        user: eventos_hackaton_user
+    databaseName: eventos_hackaton
+    databaseUser: eventos_hackaton_user
 
   # Aplicación Web
   - type: web
     name: eventos-hackathon
-    env: docker
+    runtime: docker
     plan: free
     region: oregon
+    branch: principal
     dockerfilePath: ./Dockerfile
+    dockerContext: .
     healthCheckPath: /
     envVars:
       # Aplicación
@@ -36,7 +36,7 @@ services:
       - key: LOG_LEVEL
         value: error
       
-      # Base de datos (se llenará automáticamente)
+      # Base de datos - Conectada automáticamente
       - key: DB_CONNECTION
         value: pgsql
       - key: DB_HOST
@@ -48,9 +48,13 @@ services:
           name: eventos-hackathon-db
           property: port
       - key: DB_DATABASE
-        value: eventos_hackaton
+        fromDatabase:
+          name: eventos-hackathon-db
+          property: database
       - key: DB_USERNAME
-        value: eventos_hackaton_user
+        fromDatabase:
+          name: eventos-hackathon-db
+          property: user
       - key: DB_PASSWORD
         fromDatabase:
           name: eventos-hackathon-db
