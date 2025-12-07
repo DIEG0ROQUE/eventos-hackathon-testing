@@ -271,6 +271,14 @@ Route::middleware(['auth', 'juez'])->prefix('juez')->name('juez.')->group(functi
 
 
 
+// LIMPIAR CACHE
+Route::get('/limpiar-cache', function() {
+    \Illuminate\Support\Facades\Artisan::call('route:clear');
+    \Illuminate\Support\Facades\Artisan::call('config:clear');
+    \Illuminate\Support\Facades\Artisan::call('cache:clear');
+    return 'Cache limpiado. Ahora ve a /ejecutar-seeders';
+});
+
 // RUTA TEMPORAL - EJECUTAR SEEDERS
 Route::get('/ejecutar-seeders', function () {
     try {
