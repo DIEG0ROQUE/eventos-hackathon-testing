@@ -228,7 +228,7 @@
                                     required
                                     class="block w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm @error('carrera_id') border-red-500 @enderror">
                                 <option value="">Selecciona</option>
-                                @foreach(\App\Models\Carrera::all() as $carrera)
+                                @foreach($carreras as $carrera)
                                     <option value="{{ $carrera->id }}" {{ old('carrera_id') == $carrera->id ? 'selected' : '' }}>
                                         {{ $carrera->clave }}
                                     </option>

@@ -21,7 +21,8 @@ class RegisteredUserController extends Controller
      */
     public function create(): View
     {
-        return view('auth.register');
+        $carreras = \App\Models\Carrera::orderBy('clave')->get();
+        return view('auth.register', compact('carreras'));
     }
 
     /**

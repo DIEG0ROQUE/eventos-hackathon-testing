@@ -119,9 +119,13 @@ php artisan view:cache
 php artisan migrate --force
 
 # Ejecutar seeders
+echo "========================================"
 echo "Ejecutando seeders..."
-php artisan db:seed --force
-echo "Seeders completados"
+echo "========================================"
+php artisan db:seed --force 2>&1 || echo "ADVERTENCIA: Seeders fallaron pero continuando..."
+echo "Verificando datos..."
+php artisan tinker --execute="echo 'Carreras: ' . \App\Models\Carrera::count(); echo '\nRoles: ' . \App\Models\Rol::count();" || true
+echo "========================================"
 
 # Iniciar supervisor
 /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
